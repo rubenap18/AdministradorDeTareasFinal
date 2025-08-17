@@ -4,42 +4,28 @@ import java.net.*;
 import java.io.*;
 
 public class Servidor {
-    public static void main(String[] args) {
-        
-        // Almacenamiento de datos en servidor con matrices
-        String[][] perfiles = new String[100][3];  // ID, Nombre, Rol
-        String[][] equipos = new String[50][2];    // ID, Nombre
-        String[][] proyectos = new String[50][4];  // ID, Nombre, EquipoID, Estado
-        String[][] tareas = new String[500][6];   // ID, ProyectoID, Título, Estado, AsignadoA, Porcentaje
-        
-        int[] contadores = new int[4];  // Índices: 0=perfiles, 1=equipos, 2=proyectos, 3=tareas
 
-        try (ServerSocket serverSocket = new ServerSocket(1800)) {
+    
+    public static void main(String[] args) throws ClassNotFoundException {
+
+        try (ServerSocket serverSocket = new ServerSocket(5000)) {
             System.out.println("Servidor esperando conexion");
 
-            while (true) {
-                
-                try (Socket clientSocket = serverSocket.accept();
-                    BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                    PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
+            while (true) {                
+                try  {
+                    Socket clientSocket = serverSocket.accept();
+                    ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
+                    out.flush();
+                    ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
+                    System.out.println("Cliente conectado. IP: " + clientSocket.getInetAddress());
 
-                    System.out.println("Cliente conectado: "+clientSocket.getInetAddress());
 
-                    String comando;
-
-                    while ((comando = in.readLine()) != null) {
-                        System.out.println("Comando recibido: " + comando); // Muestra las acciones que se realizaron en el cliente
-                        String respuesta = procesarComando(  // Va a actuar dependiendo de la respuesta
-                            comando, 
-                            perfiles, 
-                            equipos, 
-                            proyectos, 
-                            tareas, 
-                            contadores
-                        );
-                        out.println(respuesta); // Envia lo que hace o la respuesta que obtuvo al cliente
+                    while ((Datos.comando = (String[])in.readObject()) != null) {
+                        System.out.println("Comando recibido: " + Datos.comando[0]); // Muestra las acciones que se realizaron en el cliente
+                        String respuesta = procesarComando(Datos.comando); // Va a actuar dependiendo de la respuesta
+                        out.writeObject(respuesta); // Envia lo que hace o la respuesta que obtuvo al cliente
                     }
-                }catch(IOException e){
+                } catch(IOException e){
                     System.err.println("Error con cliente: " + e.getMessage());
                 }
             }
@@ -48,44 +34,34 @@ public class Servidor {
         }
     }
 
-    public static String procesarComando(
-        String comando, 
-        String[][] perfiles,  // Recibe como parametro los arreglos
-        String[][] equipos, 
-        String[][] proyectos, 
-        String[][] tareas, 
-        int[] contadores
-    )  
+    public static String procesarComando(String[] comando) {
+        String tipoComando = comando[0];
 
-    {
-        String[] partes = comando.split("\\|"); // Extrae el primer elemento del arreglo que corresponde al comando
-        String tipoComando = partes[0];               // y los separa con el simbolo |
-
-        try {
             switch (tipoComando) {
-                // ---- PERFILES ---- 
+                //---- PERFILES ----// 
                 case "CREAR_PERFIL":
-                    if (partes.length != 3) return "ERROR | FORMATO INCORRECTO"; // Debe ser 3 porque matriz tiene 3 espacios (accion, nombre, rol)
-                    perfiles[contadores[0]][0] = String.valueOf(contadores[0]); // Convertir valor a String
-                    perfiles[contadores[0]][1] = partes[1];
-                    perfiles[contadores[0]][2] = partes[2];
-                    return "Perfil creado con ID: " + contadores[0]++;
-
+                    return MetodosPerfiles.crearPerfil(comando);
+                    
                 case "LISTAR_PERFILES":
-                    if (contadores[0] == 0) return "ERROR | No hay perfiles registrados";
-                    StringBuilder sbPerfiles = new StringBuilder(); // Se crea para poder formatear la lista despues
+                    return MetodosPerfiles.listarPerfiles();
 
-                    for (int i = 0; i < contadores[0]; i++) {
-                        sbPerfiles.append(String.join(",", perfiles[i]));
-                        if (i < contadores[0] - 1) sbPerfiles.append(";"); // Formatea la lista antes de enviarla al cliente
-                    }
-                    return "|" + sbPerfiles.toString();
+                case "CREAR_EQUIPO":
+                    return MetodosEquipos.crearEquipo(comando);
+
+                case "LISTAR_EQUIPOS":
+                    return MetodosEquipos.listarEquipos();
+                default:
+                    return "El Servidor sigue activo";
+                }
+            }
+    }
+/*
 
                 // ---- EQUIPOS ----
                 case "CREAR_EQUIPO":
-                    if (partes.length != 2) return "ERROR | FORMATO INCORRECTO";
+                    if (comando.length != 2) return "ERROR | FORMATO INCORRECTO";
                     equipos[contadores[1]][0] = String.valueOf(contadores[1]); // Convertir el valor int a String del contador
-                    equipos[contadores[1]][1] = partes[1];
+                    equipos[contadores[1]][1] = comando[1];
                     return "Equipo creado con ID: " + contadores[1]++;
 
                 case "LISTAR_EQUIPOS":
@@ -100,9 +76,9 @@ public class Servidor {
 
                 // ---- PROYECTOS ----
                 case "CREAR_PROYECTO":
-                    if (partes.length != 2) return "ERROR | Formato: CREAR_PROYECTO|nombre"; // Valida que sea introducido correctamente (2 elementos)
+                    if (comando.length != 2) return "ERROR | Formato: CREAR_PROYECTO|nombre"; // Valida que sea introducido correctamente (2 elementos)
                     proyectos[contadores[2]][0] = String.valueOf(contadores[2]); // Convierte el valor digitado a String
-                    proyectos[contadores[2]][1] = partes[1]; // Nombre del proyecto
+                    proyectos[contadores[2]][1] = comando[1]; // Nombre del proyecto
                     proyectos[contadores[2]][2] = null; // Equipo asignado que al inicio es null
                     proyectos[contadores[2]][3] = "Activo"; // Estado inicial
                     return "OK|Proyecto creado con ID: " + contadores[2]++;
@@ -120,32 +96,32 @@ public class Servidor {
                     return "|" + sbProyectos.toString(); // Muestra los datos creados convertidos a String
 
                 case "ASIGNAR_EQUIPO":
-                    if (partes.length != 3) return "ERROR|Formato: ASIGNAR_EQUIPO|proyectoID|equipoID";
-                    int proyectoID = Integer.parseInt(partes[1]); // Convierte de String a int
-                    int equipoID = Integer.parseInt(partes[2]); // Convierte de String a int
+                    if (comando.length != 3) return "ERROR|Formato: ASIGNAR_EQUIPO|proyectoID|equipoID";
+                    int proyectoID = Integer.parseInt(comando[1]); // Convierte de String a int
+                    int equipoID = Integer.parseInt(comando[2]); // Convierte de String a int
                     
                     if (proyectoID < 0 || proyectoID >= contadores[2]) // Valida si se introdujeron los datos necesarios
                         return "ERROR | ID de proyecto no válido";
                     if (equipoID < 0 || equipoID >= contadores[1]) 
                         return "ERROR | ID de equipo no válido";
                     
-                    proyectos[proyectoID][2] = partes[2];
+                    proyectos[proyectoID][2] = comando[2];
                     return "OK|Equipo asignado correctamente";
 
                 // ---- TAREAS ----
                 case "CREAR_TAREA":
 
                 
-                    if (partes.length != 3) return "ERROR | Formato incorrecto"; // Valida que el formato sea correctp (3 elementos)
-                    int proyectoIDTarea = Integer.parseInt(partes[1]);
+                    if (comando.length != 3) return "ERROR | Formato incorrecto"; // Valida que el formato sea correctp (3 elementos)
+                    int proyectoIDTarea = Integer.parseInt(comando[1]);
                     
                     if (proyectoIDTarea < 0 || proyectoIDTarea >= contadores[2]) // Valida el ID del proyecto
                         return "ERROR | ID de proyecto no válido";
                     
                      // Crea nuevas tareas con los valores por defecto
                     tareas[contadores[3]][0] = String.valueOf(contadores[3]);
-                    tareas[contadores[3]][1] = partes[1];
-                    tareas[contadores[3]][2] = partes[2];
+                    tareas[contadores[3]][1] = comando[1];
+                    tareas[contadores[3]][2] = comando[2];
                     tareas[contadores[3]][3] = "Pendiente";
                     tareas[contadores[3]][4] = "Sin asignar";
                     tareas[contadores[3]][5] = "0";
@@ -177,9 +153,9 @@ public class Servidor {
                     return "OK|" + sbTareas.toString(); //
 
                 case "CAMBIAR_ESTADO_TAREA":
-                    if (partes.length != 3) return "ERROR | Formato incorrecto"; // Valida el formato
-                    int tareaID = Integer.parseInt(partes[1]); // Convertir de String a int para almacenarlo de nuevo
-                    int estado = Integer.parseInt(partes[2]);
+                    if (comando.length != 3) return "ERROR | Formato incorrecto"; // Valida el formato
+                    int tareaID = Integer.parseInt(comando[1]); // Convertir de String a int para almacenarlo de nuevo
+                    int estado = Integer.parseInt(comando[2]);
                     
                     if (tareaID < 0 || tareaID >= contadores[3]) // Valida que el ID sea correcto
                         return "ERROR|ID de tarea no válido";
@@ -196,8 +172,8 @@ public class Servidor {
 
                 // ---- REPORTES ----
                 case "REPORTE_AVANCE":
-                    if (partes.length != 2) return "ERROR | Formato incorrecto"; // Valida que el formato sea correcto
-                    int proyectoIDReporte = Integer.parseInt(partes[1]);
+                    if (comando.length != 2) return "ERROR | Formato incorrecto"; // Valida que el formato sea correcto
+                    int proyectoIDReporte = Integer.parseInt(comando[1]);
                     
                     if (proyectoIDReporte < 0 || proyectoIDReporte >= contadores[2]) 
                         return "ERROR | ID de proyecto no válido";
@@ -261,6 +237,4 @@ public class Servidor {
             }
         } catch (Exception e) {
             return "ERROR | Error procesando comando: " + e.getMessage();
-        }
-    }
-}
+        }*/

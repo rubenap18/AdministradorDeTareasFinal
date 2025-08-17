@@ -1,50 +1,80 @@
 package cliente;
 
-import java.net.*;
-import java.io.*;
+import java.net.Socket;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.Scanner;
 
 public class Cliente {
     public static void main(String[] args) {
         
-        try {
-            // Cosas para establecer conexion al servidor
-            Socket socket = new Socket("192.168.140.12", 1800); // IP destino (computadora con el servidor)
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true); // Envia datos al cliente
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())); // Lee datos enviados entre cliente y servidor
+        try (Socket socket = new Socket("localhost", 5000)){
+
+            ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream()); // Lee datos enviados entre cliente y servidor
+            out.flush(); //Enviar de una para que el servidor pueda crear sin problemas su OutputStream
+            ObjectInputStream in = new ObjectInputStream(socket.getInputStream()); //Envia datos al cliente
             Scanner entrada = new Scanner(System.in);
 
-            System.out.println("-------------------------------------------");
-            System.out.println("| BIENVENIDO A ADMINISTRADOR DE PROYECTOS |");
-            System.out.println("-------------------------------------------");
+            System.out.println("╔════════════════════════════════════╗");
+            System.out.println("║                                    ║");
+            System.out.println("║            BIENVENIDO A            ║");
+            System.out.println("║     ADMINISTRADOR DE PROYECTOS     ║");
+            System.out.println("║                                    ║");
+            System.out.println("╚════════════════════════════════════╝");
 
             boolean salir = false;
             
             // Bucle while para menu con salir validado
-
             while (!salir) {
-                System.out.println("\n---> 1. Perfiles");
-                System.out.println("---> 2. Equipos");
-                System.out.println("---> 3. Proyectos");
-                System.out.println("---> 4. Tareas");
-                System.out.println("---> 5. Reportes");
-                System.out.println("---> 6. Salir");
-                System.out.print("-----> Ingresa una opción: ");
+                System.out.println();
+                System.out.println("┌───────────────────────────┐");
+                System.out.println("│       Menú Principal      │");
+                System.out.println("├───────────────────────────┤");
+                System.out.println("│                           │");
+                System.out.println("│       1. Perfiles         │");
+                System.out.println("│                           │");
+                System.out.println("│       2. Equipos          │");
+                System.out.println("│                           │");
+                System.out.println("│       3. Proyectos        │");
+                System.out.println("│                           │");
+                System.out.println("│       4. Tareas           │");
+                System.out.println("│                           │");
+                System.out.println("│       5. Reportes         │");
+                System.out.println("│                           │");
+                System.out.println("│       6. Salir            │");
+                System.out.println("│                           │");
+                System.out.println("└───────────────────────────┘");
+                System.out.println();
+                System.out.print("Ingresa una opción ▶ ");
                 int opcion = entrada.nextInt();
                 entrada.nextLine();
 
                 switch (opcion) {
-                    case 1: menuPerfiles(out, in, entrada);     break; // Reciben los parametros requeridos para funcionar entre cliente y servidor
-                    case 2: menuEquipos(out, in, entrada); break;
-                    case 3: menuProyectos(out, in, entrada); break;
-                    case 4: menuTareas(out, in, entrada); break;
-                    case 5: menuReportes(out, in, entrada); break;
-                    case 6: salir = true; break;
-                    default: System.out.println("Opción no válida");
+                    case 1: menuPerfiles(out, in, entrada); break; // Reciben los parametros requeridos para funcionar entre cliente y servidor
+                    //case 2: menuEquipos(out, in, entrada); break;
+                    //case 3: menuProyectos(out, in, entrada); break;
+                    //case 4: menuTareas(out, in, entrada); break;
+                    //case 5: menuReportes(out, in, entrada); break;
+                    case 6: 
+                        String[] enviarSalida = {"SALIR"};
+                        out.writeObject(enviarSalida);
+                        out.flush();
+                        salir = true; 
+                        break;
+                    //default: System.out.println("Opción no válida");
                 }
             }
-            // Cerrar conexión
-            out.println("SALIR");
+            // Cerrando conexión
+            
+            try {
+                    System.out.println((String)in.readObject());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+            out.close();
+            in.close();
             socket.close();
             entrada.close();
             System.out.println("Gracias por utilizar el programa");
@@ -55,12 +85,21 @@ public class Cliente {
     }
 
     // ---------------------- FUNCION PARA PERFILES ----------------------
-    static void menuPerfiles(PrintWriter out, BufferedReader in, Scanner entrada) throws IOException {
-        System.out.println("\n--- GESTIÓN DE PERFILES ---");
-        System.out.println("1. Crear perfil");
-        System.out.println("2. Ver perfiles");
-        System.out.println("3. Volver al menú principal");
-        System.out.print("Opción: ");
+    public static void menuPerfiles(ObjectOutputStream out, ObjectInputStream in, Scanner entrada) throws IOException{
+        
+        System.out.println("┌───────────────────────────┐");
+        System.out.println("│    Gestion de Perfiles    │");
+        System.out.println("├───────────────────────────┤");
+        System.out.println("│                           │");
+        System.out.println("│     1. Crear Perfil       │");
+        System.out.println("│                           │");
+        System.out.println("│     2. Ver perfiles       │");
+        System.out.println("│                           │");
+        System.out.println("│     3. Menú principal     │");
+        System.out.println("│                           │");
+        System.out.println("└───────────────────────────┘");
+        System.out.println();
+        System.out.print("Ingresa una opción ▶ ");
         int opcion = entrada.nextInt();
         entrada.nextLine();
 
@@ -68,29 +107,34 @@ public class Cliente {
             case 1:
                 System.out.print("Nombre del perfil: ");
                 String nombre = entrada.nextLine();
-
                 System.out.print("Rol: ");
                 String rol = entrada.nextLine();
 
-                out.println("CREAR_PERFIL|"+nombre+"|"+rol);
-                System.out.println(in.readLine());
+                String[] datosAEnviar = {"CREAR_PERFIL",nombre,rol};
+
+                //mandando datos al servidor
+                out.writeObject(datosAEnviar);
+                out.flush(); //Enjuaga el buffer haciendo que el socket mande inmediatamente los datos sin esperar a que el buffer se llene
+
+                //imprimiendo lo recibido del servidor
+                try {
+                    String respuestaDelServidor = (String) in.readObject();
+                    System.out.println(respuestaDelServidor);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
                 break;
 
             case 2:
-                out.println("LISTAR_PERFILES");
-                String respuesta = in.readLine();
+                String[] enviar = {"LISTAR_PERFILES"};
+                out.writeObject(enviar);
+                out.flush();
 
-                if (respuesta.startsWith("ERROR")) {
-                    System.out.println(respuesta.split("\\|")[1]); // Separar el arreglo con simbolo
-
-                } else {
-                    System.out.println("\n--- LISTA DE PERFILES ---");
-                    String[] perfiles = respuesta.split(";");
-
-                    for (String perfil:perfiles) {
-                        String[] datos = perfil.split(",");
-                        System.out.println("ID: "+datos[0]+" | Nombre: "+datos[1]+" | Rol: "+datos[2]); // Ubicacion de los datos dentro de las matrices
-                    }
+                try {
+                    String respuestaDelServidor = (String) in.readObject();
+                    System.out.println(respuestaDelServidor);
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
                 break;
 
@@ -100,8 +144,9 @@ public class Cliente {
             default:
                 System.out.println("Opción no válida");
         }
+    
     }
-
+/*
     // ---------------------- FUNCION PARA EQUIPOS ----------------------
     static void menuEquipos(PrintWriter out, BufferedReader in, Scanner entrada) throws IOException {
         System.out.println("\n--- GESTIÓN DE EQUIPOS ---");
@@ -145,7 +190,7 @@ public class Cliente {
                 System.out.println("Opción no válida");
         }
     }
-
+/*
     // ---------------------- FUNCION PARA PROYECTOS ----------------------
     static void menuProyectos(PrintWriter out, BufferedReader in, Scanner entrada) throws IOException {
         System.out.println("\n--- GESTIÓN DE PROYECTOS ---");
@@ -308,5 +353,5 @@ public class Cliente {
             default:
                 System.out.println("Opción no válida");
         }
-    }
+    }*/
 }
